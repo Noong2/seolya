@@ -1,4 +1,6 @@
 import * as THREE from './vendor/three.module.js';
+import {CABIN_OBSTACLES} from './multiplayer-shared.js';
+import {deviceProfile} from './device.js';
 
 // Every visible part of the landscape is geometry; no backdrop image is loaded.
 export function createWinterLandscape(scene,random){
@@ -10,7 +12,7 @@ export function createWinterLandscape(scene,random){
   const moon=new THREE.Mesh(new THREE.SphereGeometry(6,24,16),new THREE.MeshBasicMaterial({color:'#e6eddd',transparent:true,opacity:0,fog:false}));moon.position.set(205,105,-130);scene.add(moon);
   const peaks=[[100,-95,55,46,47],[175,-15,72,55,55],[115,100,53,43,48],[-85,-130,49,50,45],[-150,80,58,53,50],[15,185,42,55,44]];
   const height=(x,z)=>{const distance=Math.hypot(x,z);if(distance<11)return -.28;let h=0;for(const [px,pz,ph,sx,sz] of peaks){const d=((x-px)/sx)**2+((z-pz)/sz)**2;h+=ph*Math.exp(-d*1.4);}const detail=(Math.sin(x*.14+z*.08)*Math.cos(z*.11-x*.045)*3+Math.sin(x*.39)*Math.cos(z*.32)*1.2+Math.sin(x*.82+z*.64)*.3);const blend=THREE.MathUtils.smoothstep(distance,11,45);return -.3+(h+detail)*blend;};
-  const terrainGeo=new THREE.PlaneGeometry(600,600,200,200);terrainGeo.rotateX(-Math.PI/2);const p=terrainGeo.attributes.position;
+  const detail=deviceProfile().mobile?128:200;const terrainGeo=new THREE.PlaneGeometry(600,600,detail,detail);terrainGeo.rotateX(-Math.PI/2);const p=terrainGeo.attributes.position;
   for(let i=0;i<p.count;i++)p.setY(i,height(p.getX(i),p.getZ(i)));terrainGeo.computeVertexNormals();
   const color=new THREE.Color(),colors=new Float32Array(p.count*3);for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),y=p.getY(i);const slope=terrainGeo.attributes.normal.getY(i);const grain=.5+.5*Math.sin(x*.8+z*.6);if(slope<.72&&y>15)color.set('#697b8a').lerp(new THREE.Color('#a4afba'),grain*.6);else color.set('#e5edf1').lerp(new THREE.Color('#bdccd8'),grain*.19+Math.max(0,1-slope)*.4);colors.set([color.r,color.g,color.b],i*3);}terrainGeo.setAttribute('color',new THREE.BufferAttribute(colors,3));
   const terrain=new THREE.Mesh(terrainGeo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}));terrain.receiveShadow=true;scene.add(terrain);
@@ -58,15 +60,5 @@ export function completeCabin({scene,box,cylinder,sphere,wood,darkWood,frameWood
   for(const side of [-1,1]){const roof=box(7.1,.21,13.7,roofMat,side*3.15,5.77,0);roof.rotation.z=-side*.26;const cap=box(7.15,.17,13.8,roofSnow,side*3.15,5.94,0);cap.rotation.z=-side*.26;}
   box(.9,2.1,.9,material('#827c70'),-2.25,6,-5.5);box(1.15,.15,1.15,roofSnow,-2.25,7.1,-5.5);
   box(12.8,.35,13.1,material('#6f736d'),0,-.22,0);
-  return [
-    {minX:-4.3,maxX:-.15,minZ:-5.95,maxZ:-4.25},
-    {minX:-1.25,maxX:1.75,minZ:-.57,maxZ:1.37},
-    {minX:-2.04,maxX:2.84,minZ:3.64,maxZ:5.16},
-    {minX:3.05,maxX:4.68,minZ:-.3,maxZ:1.62},
-    {minX:-5.25,maxX:-3.65,minZ:-.75,maxZ:1.15},
-    {minX:3.48,maxX:5.35,minZ:5.35,maxZ:6.2},
-    {minX:.95,maxX:2.25,minZ:5.34,maxZ:6.2},
-    {minX:-5.52,maxX:-4.88,minZ:1.88,maxZ:2.52},
-    {minX:5.15,maxX:5.78,minZ:3.5,maxZ:4.1}
-  ];
+  return CABIN_OBSTACLES;
 }

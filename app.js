@@ -4,6 +4,9 @@ import {CabinExplorer} from './explorer.js';
 import {CabinAudio} from './audio.js';
 import {createHearthFire} from './fire.js';
 import {nightProgress,DRINK_DURATION} from './experience-state.js';
+import {CabinConnection,RemoteVisitors,birdLabel} from './multiplayer.js';
+import {SEATS} from './multiplayer-shared.js';
+import {updateDeviceLayout} from './device.js';
 
 const $ = id => document.getElementById(id);
 const iconPaths = {
@@ -21,18 +24,19 @@ const iconPaths = {
 };
 function icon(name){return `<svg viewBox="0 0 24 24" aria-hidden="true">${iconPaths[name]||iconPaths.cabin}</svg>`;}
 document.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon));
+let device=updateDeviceLayout();
 let settings={fire:65,wind:30,snow:true,eco:false};
 try{settings={...settings,...JSON.parse(localStorage.getItem('seolya-settings')||'{}')};}catch{}
 function saveSettings(){try{localStorage.setItem('seolya-settings',JSON.stringify(settings));}catch{}}
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let renderer;
-try{renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});}catch(err){$('loading').innerHTML='<p>오두막을 열지 못했어요.</p><p>WebGL을 지원하는 브라우저에서 다시 열어주세요.</p>';throw err;}
-renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,settings.eco?1:1.7));
+try{renderer=new THREE.WebGLRenderer({antialias:!device.mobile,powerPreference:device.mobile?'default':'high-performance'});}catch(err){$('loading').innerHTML='<p>오두막을 열지 못했어요.</p><p>WebGL을 지원하는 브라우저에서 다시 열어주세요.</p>';throw err;}
+renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,settings.eco?1:device.pixelRatio));
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.22;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 $('scene').appendChild(renderer.domElement);renderer.domElement.setAttribute('aria-label','드래그하면 시선을 돌릴 수 있는 겨울 오두막');
 const scene=new THREE.Scene();scene.background=new THREE.Color('#b1bbce');
-const camera=new THREE.PerspectiveCamera(innerWidth<700?76:65,innerWidth/innerHeight,.08,600);
+const camera=new THREE.PerspectiveCamera(device.fov,innerWidth/innerHeight,.08,600);
 let randomSeed=4412;function rand(){randomSeed=(randomSeed*1664525+1013904223)>>>0;return randomSeed/4294967296;}
 function material(color,roughness=.8,extra={}){return new THREE.MeshStandardMaterial({color,roughness,...extra});}
 const woodCanvas=document.createElement('canvas');woodCanvas.width=512;woodCanvas.height=512;
@@ -88,7 +92,7 @@ function addLog(x,y,z,angle){const log=cylinder(.12,.14,1.5,logMat,x,y,z,logGrou
 addLog(fx,.52,-4.92,.23);addLog(fx,.67,-5.15,-.32);addLog(fx,.43,-5.32,.08);
 for(let i=0;i<7;i++)box(.025,.24,.025,iron,fx-.8+i*.26,.38,-4.6);
 box(1.9,.025,.025,iron,fx,.5,-4.6);
-const fireLight=new THREE.PointLight('#ffae58',22,10,2);fireLight.position.set(fx,1,-4.25);fireLight.castShadow=true;fireLight.shadow.mapSize.set(1024,1024);fireLight.shadow.bias=-.003;scene.add(fireLight);
+const fireLight=new THREE.PointLight('#ffae58',22,10,2);fireLight.position.set(fx,1,-4.25);fireLight.castShadow=true;fireLight.shadow.mapSize.set(device.mobile?512:1024,device.mobile?512:1024);fireLight.shadow.bias=-.003;scene.add(fireLight);
 const hearthFire=createHearthFire(scene,fx,-4.95);
 
 // Mantel objects and framed mountain study.
@@ -103,6 +107,7 @@ const rugCanvas=document.createElement('canvas');rugCanvas.width=rugCanvas.heigh
 box(6.7,.025,5.7,material('#e2d8bb',1,{map:rugTex}),.2,.025,.3);
 function sofa(x,z,rotation=0,width=3.6){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rotation;scene.add(g);for(const a of [-width/2+.25,width/2-.25])for(const b of [-.45,.45])box(.12,.25,.12,darkWood,a,.15,b,g);roundBox(width-.1,.35,1.3,.12,cream,0,.43,0,g);roundBox(width,.8,.3,.14,cream,0,.97,.57,g);roundBox(.3,.6,1.32,.13,cream,-width/2,.77,0,g);roundBox(.3,.6,1.32,.13,cream,width/2,.77,0,g);const cushions=Math.round(width/1.2);for(let i=0;i<cushions;i++){roundBox((width-.4)/cushions-.04,.2,1.05,.07,creamLight,-width/2+.2+(i+.5)*(width-.4)/cushions,.69,-.03,g);roundBox((width-.4)/cushions-.04,.58,.16,.07,creamLight,-width/2+.2+(i+.5)*(width-.4)/cushions,1.03,.39,g);}const pillow=roundBox(.5,.5,.19,.08,green,-width/2+.45,.98,.23,g);pillow.rotation.z=.2;const pillow2=roundBox(.49,.49,.19,.08,material('#9b7454'),width/2-.45,.99,.26,g);pillow2.rotation.z=-.2;return g;}
 const mainSofa=sofa(.4,4.4,0,4.4);const sideChair=sofa(3.85,.65,Math.PI/2-.25,1.5);const leftChair=sofa(-4.45,.2,-Math.PI/2+.25,1.5);
+const windowSofa=sofa(4.7,-3,Math.PI/2,2.0);
 const blanket=roundBox(1.15,.06,1.18,.025,material('#718074'),1.45,.83,4.32);blanket.rotation.z=.02;box(1.15,.5,.04,material('#718074'),1.45,.56,3.74);
 roundBox(2.7,.16,1.65,.18,wood,.25,.63,.4);for(const x of [-.75,1.25])for(const z of [-.1,.9])box(.12,.55,.12,darkWood,x,.3,z);
 function mug(x,y,z){cylinder(.115,.085,.24,material('#cabd9e',.35),x,y+.12,z);cylinder(.094,.094,.006,material('#58412a',.1),x,y+.243,z);const handle=new THREE.Mesh(new THREE.TorusGeometry(.08,.022,8,18),material('#cabd9e',.35));handle.position.set(x+.12,y+.13,z);scene.add(handle);}
@@ -129,8 +134,23 @@ let toastTimeout;function toast(text){$('toast').textContent=text;$('toast').cla
 function dismissWelcome(){if($('welcome').inert)return;$('welcome').classList.add('dismissed');$('welcome').inert=true;$('welcome').setAttribute('aria-hidden','true');}
 function updateSeat(value){seated=value;$('seat-label').hidden=!seated;$('sit-action').classList.toggle('active',seated);$('sit-action').setAttribute('aria-pressed',String(seated));$('sit-text').textContent=seated?'일어나기':'앉기';}
 const explorer=new CabinExplorer({scene,camera,canvas:renderer.domElement,obstacles,onMove:dismissWelcome,onSit:updateSeat,notify:toast});
+const remoteVisitors=new RemoteVisitors(scene);let selfLabel=null;
+function renderRoster(members,selfId){$('room-roster').replaceChildren();for(const member of members){const item=document.createElement('li');const name=document.createElement('span');name.textContent=member.name+(member.id===selfId?' · 나':'');const seat=document.createElement('small');seat.textContent=member.seat===null?'오두막을 둘러보는 중':SEATS[member.seat].label;item.append(name,seat);$('room-roster').appendChild(item);}}
+const connection=new CabinConnection({
+  getLocalState:()=>explorer.networkState,notify:toast,
+  onSnapshot:(self,data)=>{explorer.applyServerMember(self,{snapshot:true});explorer.setIdentity(self.appearance);if(selfLabel){selfLabel.material.map.dispose();selfLabel.material.dispose();selfLabel.removeFromParent();}selfLabel=birdLabel(self.name,true);explorer.visitor.root.add(selfLabel);$('my-bird-name').textContent=self.name+' · 나';$('room-title').textContent='오두막 '+data.room.split('-').at(-1);toast(self.name+' 이름으로 입장했어요. 반가워요.');},
+  onSelf:(member,data)=>{const wasSeated=explorer.seated;explorer.applyServerMember(member,{rejected:data.type==='rejected'});if(member.seat!==null&&!wasSeated){$('seat-label').textContent=SEATS[member.seat].label;toast(SEATS[member.seat].label+'에 앉았어요.');}if(data.type==='rejected'&&data.request==='sit')toast('앉을 수 있는 자리를 다시 확인하고 있어요.');},
+  onMembers:(members,selfId)=>{remoteVisitors.sync(members,selfId);renderRoster(members,selfId);},
+  onStatus:status=>{const connected=status.status==='connected';$('room-info').dataset.status=status.status;$('room-info').setAttribute('aria-label',connected?`오두막 ${status.room.split('-').at(-1)}, ${status.count}/8명. 함께 있는 새 보기`:'오두막 연결 상태 보기');$('room-status-text').textContent=connected?`오두막 ${status.room.split('-').at(-1)} · ${status.count}/8`:status.status==='connecting'?'오두막에 연결 중':status.status==='reconnecting'?'다시 연결하는 중':'혼자 쉬는 중';$('room-connection-note').textContent=connected?'한 오두막에는 최대 8명이 함께 쉬어요.':status.status==='offline'?'지금은 혼자 쉬는 공간이에요. 실시간 연결은 잠시 쉬고 있어요.':'함께 쉴 오두막에 연결하고 있어요.';if(status.name)$('my-bird-name').textContent=status.name+' · 나';$('invite-button').disabled=!connected;$('room-retry').hidden=connected;},
+  onSharedLog:()=>{logBoost=1;}
+});
+explorer.requestSeat=value=>value?connection.sit():connection.stand();
+$('room-info').onclick=()=>{$('room-dialog').showModal();};
+$('room-retry').onclick=()=>{connection.attempt=0;connection.start();};
+$('invite-button').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);toast('같은 오두막 초대 링크를 복사했어요.');}catch{toast('주소창의 링크를 복사해 함께 쉬고 싶은 사람에게 보내주세요.');}};
+connection.start();
 function setView(view){currentView=view;explorer.setView(view);document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));}
-function sit(){explorer.setSeated(!seated);dismissWelcome();toast(seated?'편히 앉으세요. V 버튼으로 1인칭 감상도 가능해요.':'이동키나 바닥 클릭으로 오두막을 둘러보세요.');}
+function sit(){const wasSeated=seated;explorer.setSeated(!seated);dismissWelcome();toast(connection.connected?(wasSeated?'자리에서 일어났어요.':'빈자리를 찾고 있어요.'):seated?'편히 앉으세요. V 버튼으로 1인칭 감상도 가능해요.':'이동키나 바닥 클릭으로 오두막을 둘러보세요.');}
 $('sit-action').onclick=sit;$('welcome-sit').onclick=()=>{if(!seated)sit();};
 document.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>{setView(button.dataset.view);dismissWelcome();});
 $('reset-view').onclick=()=>setView('wide');
@@ -139,38 +159,41 @@ $('perspective-toggle').onclick=togglePerspective;
 
 async function toggleSound(){try{soundEnabled=await soundEngine.toggle();$('sound-toggle').innerHTML=icon(soundEnabled?'sound':'muted');$('sound-toggle').setAttribute('aria-label',soundEnabled?'소리 끄기':'소리 켜기');$('sound-toggle').title=soundEnabled?'소리 끄기':'소리 켜기';$('sound-toggle').setAttribute('aria-pressed',String(soundEnabled));$('settings-sound').textContent=soundEnabled?'소리 끄기':'소리 켜기';if(soundEnabled)toast('실제 장작 타는 소리와 겨울바람이 들려요.');}catch(err){toast(err.message);}}
 $('sound-toggle').onclick=toggleSound;$('settings-sound').onclick=toggleSound;
-function addFirewood(){const now=performance.now();if(now-lastLog<8000){toast('새 장작이 천천히 타고 있어요.');return;}lastLog=now;logBoost=1;explorer.addLog();toast('장작을 보탰어요. 불이 조금 더 따뜻해졌어요.');$('log-action').classList.add('active');setTimeout(()=>$('log-action').classList.remove('active'),5000);soundEngine.boost();}
+function addFirewood(){const now=performance.now();if(now-lastLog<8000){toast('새 장작이 천천히 타고 있어요.');return;}lastLog=now;logBoost=1;explorer.addLog();connection.action('log');toast('장작을 보탰어요. 불이 조금 더 따뜻해졌어요.');$('log-action').classList.add('active');setTimeout(()=>$('log-action').classList.remove('active'),5000);soundEngine.boost();}
 $('log-action').onclick=addFirewood;
-async function drinkCocoa(){if(cocoaBusy)return;cocoaBusy=true;dismissWelcome();try{if(!soundEngine.context)await toggleSound();const result=explorer.drinkCocoa();if(result.refilled){toast('따뜻한 핫초코를 가득 채웠어요.');cocoaBusy=false;return;}if(!result.started){cocoaBusy=false;return;}soundEngine.sip();$('tea-action').classList.add('active');$('cocoa-status').hidden=false;setTimeout(()=>{$('cocoa-status').hidden=true;$('tea-action').classList.remove('active');cocoaBusy=false;},DRINK_DURATION*1000);}catch(error){cocoaBusy=false;toast(error.message);}}
+async function drinkCocoa(){if(cocoaBusy)return;cocoaBusy=true;dismissWelcome();try{if(!soundEngine.context)await toggleSound();const result=explorer.drinkCocoa();if(result.refilled){connection.action('drink');toast('따뜻한 핫초코를 가득 채웠어요.');cocoaBusy=false;return;}if(!result.started){cocoaBusy=false;return;}connection.action('drink');soundEngine.sip();$('tea-action').classList.add('active');$('cocoa-status').hidden=false;setTimeout(()=>{$('cocoa-status').hidden=true;$('tea-action').classList.remove('active');cocoaBusy=false;},DRINK_DURATION*1000);}catch(error){cocoaBusy=false;toast(error.message);}}
 $('tea-action').onclick=drinkCocoa;
 $('night-preview').onclick=()=>{if(nightOffset||night>.85){nightOffset=0;nightEpoch=elapsed;}else nightOffset=180;$('night-preview').textContent=nightOffset?'저녁으로 돌아가기':'밤 풍경 미리 보기';toast(nightOffset?'눈 내리는 밤으로 바뀌어요.':'오두막의 저녁으로 돌아왔어요.');};
-$('about-open').onclick=()=>$('about-dialog').showModal();$('settings-open').onclick=()=>$('settings-dialog').showModal();
+$('about-open').onclick=()=>{$('about-dialog').querySelector('.settings-note').innerHTML=connection.connected?'한 오두막에서 최대 8명이 함께 쉬어요.<br>이름은 입장할 때 새 이름으로 정해져요.<br>설산·숲·지형과 오두막 전체를 3D로 만들었습니다.':'지금은 혼자 쉬는 공간으로 연결되어 있어요.<br>실시간 서버에 연결되면 다른 새들과 함께 쉬어요.<br>설산·숲·지형과 오두막 전체를 3D로 만들었습니다.';$('about-dialog').showModal();};$('settings-open').onclick=()=>$('settings-dialog').showModal();
 document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();}}));
 $('fire-volume').value=settings.fire;$('wind-volume').value=settings.wind;$('snow-toggle').checked=settings.snow;$('eco-toggle').checked=settings.eco;
 $('fire-volume').oninput=e=>{settings.fire=+e.target.value;soundEngine.setVolume('fire',settings.fire);saveSettings();};
 $('wind-volume').oninput=e=>{settings.wind=+e.target.value;soundEngine.setVolume('wind',settings.wind);saveSettings();};
 $('snow-toggle').onchange=e=>{settings.snow=e.target.checked;snowPoints.visible=settings.snow;saveSettings();};
-$('eco-toggle').onchange=e=>{settings.eco=e.target.checked;renderer.setPixelRatio(Math.min(devicePixelRatio,settings.eco?1:1.7));snowGeo.setDrawRange(0,settings.eco?600:snowCount);saveSettings();};
-snowGeo.setDrawRange(0,settings.eco?600:snowCount);
+function applyQuality(){renderer.setPixelRatio(Math.min(devicePixelRatio,settings.eco?1:device.pixelRatio));snowGeo.setDrawRange(0,settings.eco?400:device.snowCount);}
+$('eco-toggle').onchange=e=>{settings.eco=e.target.checked;applyQuality();saveSettings();};
+applyQuality();
 $('fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{toast('이 브라우저에서는 전체 화면을 열 수 없어요.');}};
 window.addEventListener('keydown',e=>{if(e.repeat||document.querySelector('dialog[open]')||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;if(e.key==='1')sit();if(e.key==='2')drinkCocoa();if(e.key==='3')addFirewood();if(e.key.toLowerCase()==='v')togglePerspective();});
-document.addEventListener('visibilitychange',()=>soundEngine.visibility());
-window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.fov=innerWidth<700?76:65;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+document.addEventListener('visibilitychange',()=>{soundEngine.visibility();if(!document.hidden)connection.recover();});window.addEventListener('online',()=>connection.recover());
+function resizeExperience(){device=updateDeviceLayout();camera.aspect=innerWidth/innerHeight;camera.fov=device.fov;camera.updateProjectionMatrix();applyQuality();renderer.setSize(innerWidth,innerHeight);explorer.clearInput();$('welcome-instructions').innerHTML=device.mobile?'왼쪽 패드로 걷고, 화면을 밀어 둘러보세요.<br>두 손가락으로 화면을 벌리거나 좁혀 거리를 조절해요.':'WASD·방향키 또는 빈 바닥을 눌러 걸어요.<br>드래그로 둘러보고, V로 시점을 바꿔보세요.';$('gesture-hint').textContent=device.mobile?'왼쪽 패드 · 이동　 /　 화면 밀기 · 시선　 /　 두 손가락 · 확대':'WASD·방향키 / 바닥 클릭으로 이동　 ·　 드래그로 시선 회전　 ·　 V 시점 전환';}
+window.addEventListener('resize',resizeExperience);window.visualViewport?.addEventListener('resize',resizeExperience);matchMedia('(pointer: coarse)').addEventListener('change',resizeExperience);resizeExperience();
 let elapsed=0,lastFrame=performance.now(),lastClock=-1;
-function animate(now){requestAnimationFrame(animate);const frameSeconds=(now-lastFrame)/1000,dt=Math.min(frameSeconds,.05);lastFrame=now;if(document.hidden)return;elapsed+=frameSeconds;const t=elapsed;
+function animate(now){requestAnimationFrame(animate);if(document.hidden){lastFrame=now;return;}const frameSeconds=(now-lastFrame)/1000;if((device.mobile||settings.eco)&&frameSeconds<1/30-.002)return;const dt=Math.min(frameSeconds,.05);lastFrame=now;elapsed+=Math.min(frameSeconds,.1);const t=elapsed;
   explorer.update(dt,t);
+  connection.tick();remoteVisitors.update(dt,connection.now);
   logBoost=Math.max(0,logBoost-dt*.055);const flicker=reducedMotion?1:1+Math.sin(t*7.2)*.07+Math.sin(t*12.4)*.05;fireLight.intensity=(22+logBoost*16)*flicker;
   hearthFire.update(t,logBoost,reducedMotion);
-  const targetNight=nightProgress(t-nightEpoch+nightOffset);night=THREE.MathUtils.lerp(night,targetNight,1-Math.exp(-dt*.8));winterWorld.updateNight(night);ambientLight.intensity=THREE.MathUtils.lerp(1.15,.12,night);skyLight.intensity=THREE.MathUtils.lerp(1.45,.18,night);moonLight.intensity=THREE.MathUtils.lerp(2.3,.3,night);windowFill.intensity=THREE.MathUtils.lerp(14,1.3,night);warmFill.intensity=THREE.MathUtils.lerp(20,14,night);
+  const targetNight=nightProgress((nightOffset||nightEpoch?t:connection.roomAge??t)-nightEpoch+nightOffset);night=THREE.MathUtils.lerp(night,targetNight,1-Math.exp(-dt*.8));winterWorld.updateNight(night);ambientLight.intensity=THREE.MathUtils.lerp(1.15,.12,night);skyLight.intensity=THREE.MathUtils.lerp(1.45,.18,night);moonLight.intensity=THREE.MathUtils.lerp(2.3,.3,night);windowFill.intensity=THREE.MathUtils.lerp(14,1.3,night);warmFill.intensity=THREE.MathUtils.lerp(20,14,night);
   $('cocoa-level').textContent=Math.round(explorer.cocoaLevel*100)+'%';$('tea-action-label').textContent=explorer.cocoaLevel<=.1?'핫초코 채우기':'핫초코 마시기';
   const nightButtonText=nightOffset||night>.85?'저녁으로 돌아가기':'밤 풍경 미리 보기';if($('night-preview').textContent!==nightButtonText)$('night-preview').textContent=nightButtonText;
-  if(settings.snow&&!reducedMotion){const pos=snowGeo.attributes.position.array;for(let i=0;i<(settings.eco?600:snowCount);i++){pos[i*3+1]-=snowSpeeds[i]*dt;pos[i*3+2]+=Math.sin(t*.35+i)*dt*.08;if(pos[i*3+1]<-.3)pos[i*3+1]=13;}snowGeo.attributes.position.needsUpdate=true;}
-  if(Math.floor(t)!==lastClock){lastClock=Math.floor(t);const minutes=Math.floor(t/60).toString().padStart(2,'0');const seconds=Math.floor(t%60).toString().padStart(2,'0');$('stay-timer').textContent=`${minutes}:${seconds}`;$('local-time').textContent=night>.85?'눈 내리는 밤':night>.15?'해가 저무는 중':'푸른 저녁';$('experience').dataset.explorer=JSON.stringify({...explorer.state,night:+night.toFixed(3),audio:soundEngine.state,frameMs:Math.round(frameSeconds*1000),drawCalls:renderer.info.render.calls});}
+  if(settings.snow&&!reducedMotion){const pos=snowGeo.attributes.position.array;for(let i=0;i<(settings.eco?400:device.snowCount);i++){pos[i*3+1]-=snowSpeeds[i]*dt;pos[i*3+2]+=Math.sin(t*.35+i)*dt*.08;if(pos[i*3+1]<-.3)pos[i*3+1]=13;}snowGeo.attributes.position.needsUpdate=true;}
+  if(Math.floor(t)!==lastClock){lastClock=Math.floor(t);const minutes=Math.floor(t/60).toString().padStart(2,'0');const seconds=Math.floor(t%60).toString().padStart(2,'0');$('stay-timer').textContent=`${minutes}:${seconds}`;$('local-time').textContent=night>.85?'눈 내리는 밤':night>.15?'해가 저무는 중':'푸른 저녁';$('experience').dataset.explorer=JSON.stringify({...explorer.state,network:connection.state,remoteCount:remoteVisitors.actors.size,device,renderPixelRatio:renderer.getPixelRatio(),snowDrawCount:snowGeo.drawRange.count,night:+night.toFixed(3),audio:soundEngine.state,frameMs:Math.round(frameSeconds*1000),drawCalls:renderer.info.render.calls});}
   renderer.render(scene,camera);
 }
 // Static room shadows need only one pass; the moving visitor uses a contact shadow.
 renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
 renderer.render(scene,camera);requestAnimationFrame(animate);setTimeout(()=>{$('loading').classList.add('loaded');setTimeout(()=>$('loading').hidden=true,850);},700);
 // Stable debug hooks for meaningful visual and interaction verification.
-window.__seolya={get state(){return{...explorer.state,currentView,soundEnabled,snow:settings.snow,eco:settings.eco,cocoaBusy,night,logBoost,landscape:'procedural-3d',treeCount:winterWorld.forest.count,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles};}};
-window.addEventListener('pagehide',()=>soundEngine.destroy());
+window.__seolya={get state(){return{...explorer.state,network:connection.state,remoteCount:remoteVisitors.actors.size,device,renderPixelRatio:renderer.getPixelRatio(),currentView,soundEnabled,snow:settings.snow,eco:settings.eco,cocoaBusy,night,logBoost,landscape:'procedural-3d',treeCount:winterWorld.forest.count,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles};}};
+window.addEventListener('pagehide',e=>{connection.stop();if(!e.persisted)soundEngine.destroy();});window.addEventListener('pageshow',e=>{if(e.persisted){connection.disposed=false;connection.attempt=0;connection.start();lastFrame=performance.now();soundEngine.visibility();}});

@@ -1,0 +1,40 @@
+import * as THREE from './vendor/three.module.js';
+import {MULTIPLAYER_URL} from './multiplayer-config.js';
+import {makeVisitor} from './explorer.js';
+import {BIRD_NAMES,OUTFITS,SEATS} from './multiplayer-shared.js';
+import {drinkFrame} from './experience-state.js';
+
+export function birdLabel(name,self=false){const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;const ctx=canvas.getContext('2d');ctx.font='500 38px "Noto Sans KR",sans-serif';const text=name+(self?' · 나':''),width=Math.min(480,ctx.measureText(text).width+64);ctx.fillStyle='rgba(34,40,34,.78)';ctx.beginPath();ctx.roundRect((512-width)/2,24,width,76,35);ctx.fill();ctx.fillStyle='#f0e7d3';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,256,65);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthWrite:false}));sprite.position.y=2.14;sprite.scale.set(1.65,.4125,1);return sprite;}
+function disposeGroup(group){const geometries=new Set(),materials=new Set();group.traverse(o=>{if(o.geometry)geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:o.material?[o.material]:[])materials.add(m);});geometries.forEach(g=>g.dispose());materials.forEach(m=>{m.map?.dispose();m.dispose();});group.removeFromParent();}
+
+export class RemoteVisitors {
+  constructor(scene){this.scene=scene;this.actors=new Map();}
+  sync(members,selfId){const present=new Set();for(const member of members){if(member.id===selfId)continue;present.add(member.id);this.upsert(member);}for(const [id,actor]of this.actors)if(!present.has(id)){disposeGroup(actor.visitor.root);this.actors.delete(id);}}
+  upsert(member){let actor=this.actors.get(member.id);if(!actor){const visitor=makeVisitor(OUTFITS[member.appearance]||OUTFITS[0]);visitor.root.position.set(member.x,member.y,member.z);visitor.root.rotation.y=member.yaw;visitor.root.add(birdLabel(member.name));this.scene.add(visitor.root);actor={visitor,member,walk:0};this.actors.set(member.id,actor);}actor.member=member;}
+  clear(){for(const actor of this.actors.values())disposeGroup(actor.visitor.root);this.actors.clear();}
+  update(dt,now){for(const actor of this.actors.values()){const {visitor:v,member:m}=actor,seated=m.seat!==null;const target=new THREE.Vector3(m.x,m.y,m.z);v.root.position.lerp(target,1-Math.exp(-dt*8));v.root.rotation.y+=Math.atan2(Math.sin(m.yaw-v.root.rotation.y),Math.cos(m.yaw-v.root.rotation.y))*Math.min(1,dt*10);const walking=!seated&&(m.moving||v.root.position.distanceTo(target)>.05);if(walking)actor.walk+=dt*8;const stride=walking?Math.sin(actor.walk)*.48:0;v.body.position.y=-.035+(walking?Math.abs(Math.sin(actor.walk))*.025:Math.sin(now/1000*1.4)*.007);v.legs[0].rotation.x=seated?-1.28:stride;v.legs[1].rotation.x=seated?-1.28:-stride;v.arms[0].rotation.x=-stride*.6;v.arms[1].rotation.x=stride*.6;v.forearms[0].rotation.x=v.forearms[1].rotation.x=0;const f=drinkFrame(m.drinkAt?(now-m.drinkAt)/1000:-1,m.cocoaFrom,m.cocoaLevel);v.mug.visible=f.active;if(f.active){v.mug.position.set(.28-.14*f.lift,.74+.61*f.lift,.19+.14*f.lift);v.mug.rotation.x=-f.sip*.12;v.cocoa.inside.rotation.x=f.sip*.12;v.cocoa.setLevel(f.level);const dy=v.mug.position.y+.015-1.18,dz=v.mug.position.z,d=Math.min(.535,Math.hypot(dy,dz)),elbow=Math.acos(THREE.MathUtils.clamp((d*d-2*.27*.27)/(2*.27*.27),-1,1));v.arms[1].rotation.x=Math.atan2(-dz,-dy)-Math.atan2(Math.sin(elbow),1+Math.cos(elbow));v.forearms[1].rotation.x=elbow;}if(m.logAt&&now-m.logAt<2200&&!f.active)v.arms[0].rotation.x=-1.25;}}
+}
+
+export class CabinConnection {
+  constructor({onSnapshot,onMembers,onSelf,onStatus,onSharedLog,getLocalState,notify}){Object.assign(this,{onSnapshot,onMembers,onSelf,onStatus,onSharedLog,getLocalState,notify});this.members=new Map();this.selfId=null;this.room=null;this.socket=null;this.clockOffset=0;this.startedAt=0;this.attempt=0;this.disposed=false;this.lastSent=null;this.lastSendAt=-Infinity;this.requestedRoom=new URL(location.href).searchParams.get('room');this.autoFallback=false;this.endpoint=['localhost','127.0.0.1'].includes(location.hostname)?'ws://127.0.0.1:8787/connect':MULTIPLAYER_URL;}
+  get connected(){return this.socket?.readyState===WebSocket.OPEN&&!!this.selfId;}
+  get now(){return Date.now()+this.clockOffset;}
+  get roomAge(){return this.startedAt?Math.max(0,(this.now-this.startedAt)/1000):null;}
+  start(){if(!this.endpoint){this.onStatus?.({status:'offline',name:BIRD_NAMES[Math.floor(Math.random()*BIRD_NAMES.length)]});return;}if(this.socket?.readyState===0||this.socket?.readyState===1)return;clearTimeout(this.retryTimer);this.onStatus?.({status:'connecting'});const url=new URL(this.endpoint);if(this.requestedRoom&&!this.autoFallback)url.searchParams.set('room',this.requestedRoom);const ws=new WebSocket(url);this.socket=ws;this.selfId=null;this.lastMessageAt=Date.now();
+    ws.addEventListener('message',event=>{if(this.socket!==ws||typeof event.data!=='string')return;this.lastMessageAt=Date.now();if(event.data==='pong')return;let data;try{data=JSON.parse(event.data);}catch{return;}if(data.type==='room-full'){this.autoFallback=true;this.notify?.('이 오두막은 가득 찼어요. 다른 오두막으로 안내할게요.');return;}if(data.type==='capacity'){this.attempt=8;this.notify?.(data.message);return;}
+      if(data.type==='snapshot'){this.selfId=data.selfId;this.room=data.room;this.requestedRoom=data.room;this.autoFallback=false;this.startedAt=data.startedAt;this.clockOffset=data.serverTime-Date.now();this.members=new Map(data.members.map(m=>[m.id,m]));this.lastSent=null;this.attempt=0;this.onSnapshot?.(this.members.get(this.selfId),data);const current=new URL(location.href);current.searchParams.set('room',this.room);history.replaceState(null,'',current);this.publish();return;}
+      if(data.type==='leave')this.members.delete(data.id);else if(data.member){this.members.set(data.member.id,data.member);if(data.member.id===this.selfId&&data.type!=='move')this.onSelf?.(data.member,data);if(data.action==='log'&&data.member.id!==this.selfId)this.onSharedLog?.();}this.publish();
+    });
+    ws.addEventListener('open',()=>{if(this.socket!==ws)return;clearInterval(this.heartbeat);this.heartbeat=setInterval(()=>{if(ws.readyState===1){if(Date.now()-this.lastMessageAt>70000)ws.close(4000,'Reconnecting');else ws.send('ping');}},25000);});
+    ws.addEventListener('error',()=>{});ws.addEventListener('close',()=>{if(this.socket!==ws)return;clearInterval(this.heartbeat);this.selfId=null;this.members.clear();this.onMembers?.([],null);this.onStatus?.({status:this.attempt>=8?'offline':'reconnecting'});if(!this.disposed&&this.attempt<8){const delay=this.autoFallback?200:Math.min(15000,1000*2**this.attempt);this.attempt++;this.retryTimer=setTimeout(()=>this.start(),delay);}});
+  }
+  publish(){const members=[...this.members.values()];this.onMembers?.(members,this.selfId);if(this.selfId)this.onStatus?.({status:'connected',room:this.room,count:members.length,name:this.members.get(this.selfId)?.name});}
+  send(message){if(!this.connected)return false;this.socket.send(JSON.stringify(message));return true;}
+  tick(){if(!this.connected)return;const now=performance.now();if(now-this.lastSendAt<500)return;const p=this.getLocalState();if(p.seat!==null)return;const message={type:'move',x:+p.x.toFixed(3),z:+p.z.toFixed(3),yaw:+p.yaw.toFixed(3),moving:p.moving};const text=JSON.stringify(message);if(text===this.lastSent)return;this.socket.send(text);this.lastSent=text;this.lastSendAt=now;}
+  sit(){return this.send({type:'sit'});}
+  stand(){return this.send({type:'stand'});}
+  action(action){return this.send({type:'action',action});}
+  recover(){if(this.disposed)return;if(this.connected){if(Date.now()-this.lastMessageAt>70000)this.socket.close(4000,'Reconnecting');else this.socket.send('ping');}else{this.attempt=0;this.start();}}
+  stop(){this.disposed=true;clearInterval(this.heartbeat);clearTimeout(this.retryTimer);this.socket?.close(1000,'Leaving cabin');}
+  get state(){return {connected:this.connected,room:this.room,name:this.members.get(this.selfId)?.name||null,count:this.members.size,capacity:8};}
+}

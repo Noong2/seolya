@@ -7,3 +7,77 @@
 .cocoa-status{position:absolute;left:68%;bottom:26%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;background:#252b24b8;border:1px solid #e3cca13d;backdrop-filter:blur(12px);border-radius:20px;padding:9px 14px;font-size:10px;pointer-events:none;z-index:3}.cocoa-fill{border-left:1px solid #e3cca144;padding-left:11px;color:#e5c99b}.cocoa-fill i{font-style:normal;font-variant-numeric:tabular-nums}.time-note{margin-top:9px}.sound-credits{font-size:9px;color:#a5ab9a;margin-top:20px}.sound-credits a{color:#c6bdab;text-underline-offset:3px}#settings-dialog{max-height:calc(100dvh - 40px);overflow-y:auto;scrollbar-width:thin}@media(max-width:700px){.cocoa-status{left:50%;bottom:33%;font-size:9px}.action-dock button{padding-left:11px;padding-right:11px;min-width:98px}}
 
 .cocoa-status{left:50%;bottom:145px}@media(max-width:700px){.cocoa-status{bottom:185px}}
+
+.room-badge{display:flex;gap:8px;align-items:center;background:#272e266e;border:1px solid #d9c9a92e;border-radius:20px;padding:10px 13px;font-size:10px;backdrop-filter:blur(12px);margin-right:8px}.room-badge i{width:5px;height:5px;border-radius:50%;background:#bfa77b}.room-badge[data-status=connected] i{background:#b0c99c}.room-badge[data-status=reconnecting] i{animation:breathe 1.5s infinite}.bird-identity{padding-left:10px;border-left:1px solid #d9c9a933;color:#e7d3ad}.room-note{font-size:11px;line-height:1.9;color:#c5c6b8;margin:24px 0 12px}.room-roster{list-style:none;padding:0;margin:15px 0;max-height:320px;overflow:auto}.room-roster li{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:12px 0;border-bottom:1px solid #d9c9a91a;font-size:12px}.room-roster small{font-size:9px;color:#b5bbaa}.room-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.room-actions .welcome-button{margin-top:12px;font-size:10px}.room-actions button:disabled{opacity:.4;cursor:default}@media(max-width:700px){.room-badge{padding:9px 10px;font-size:8px;margin-right:0;max-width:145px}.bird-identity{position:fixed;top:108px;left:22px;border:0;padding:0;font-size:9px}.topbar{gap:10px}}
+
+/* Phone/tablet controls, including landscape and browser/notch safe areas. */
+html,body{width:100%;height:100%;overscroll-behavior:none}
+button{touch-action:manipulation}
+dialog{max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+html[data-mobile=true]{--safe-top:env(safe-area-inset-top,0px);--safe-right:env(safe-area-inset-right,0px);--safe-bottom:env(safe-area-inset-bottom,0px);--safe-left:env(safe-area-inset-left,0px)}
+html[data-mobile=true] #experience{height:100dvh;user-select:none;-webkit-user-select:none}
+html[data-mobile=true] .topbar{inset:calc(12px + var(--safe-top)) calc(12px + var(--safe-right)) auto calc(16px + var(--safe-left));gap:8px}
+html[data-mobile=true] .brand{gap:7px;min-height:44px;flex-shrink:0}
+html[data-mobile=true] .brand-mark svg{width:23px;height:23px}
+html[data-mobile=true] .wordmark{font-size:22px;letter-spacing:2px}
+html[data-mobile=true] :is(.brand-caption,.brand-divider,.hanja,.desktop-only,kbd,.perspective-badge,.weather,.time-label){display:none}
+html[data-mobile=true] .top-tools{gap:4px;min-width:0}
+html[data-mobile=true] .icon-button{width:44px;height:44px;flex-shrink:0}
+html[data-mobile=true] .room-badge{margin:0;padding:8px;min-height:44px;font-size:9px;gap:5px;max-width:135px}
+html[data-mobile=true] #room-status-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html[data-mobile=true] .location-tag{left:calc(16px + var(--safe-left));top:calc(74px + var(--safe-top));max-width:calc(100% - 152px);font-size:9px;gap:7px;flex-wrap:wrap}
+html[data-mobile=true] .location-tag>span:nth-child(2),html[data-mobile=true] .tag-line{display:none}
+html[data-mobile=true] .bird-identity{position:static;padding:0;border:0;flex-basis:100%;font-size:10px}
+html[data-mobile=true] .perspective-toggle{right:calc(14px + var(--safe-right));top:calc(71px + var(--safe-top));min-height:44px;padding:10px 13px;font-size:11px}
+html[data-mobile=true] .seat-label{top:calc(122px + var(--safe-top));max-width:calc(100% - 40px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px}
+html[data-mobile=true] .welcome{top:max(calc(157px + var(--safe-top)),24%);left:calc(24px + var(--safe-left));max-width:calc(100% - 100px)}
+html[data-mobile=true] .welcome h1{font-size:clamp(23px,5.8vw,32px);line-height:1.6;margin:12px 0}
+html[data-mobile=true] .welcome p{font-size:11px;line-height:1.9;max-width:280px}
+html[data-mobile=true] .welcome-button{min-height:44px;margin-top:18px;font-size:11px}
+html[data-mobile=true] .view-switch{right:calc(12px + var(--safe-right));top:46%;padding:5px;border-radius:28px}
+html[data-mobile=true] .view-switch button{width:44px;height:50px;font-size:9px}
+html[data-mobile=true] .bottom-bar{inset:auto calc(16px + var(--safe-right)) calc(30px + var(--safe-bottom)) calc(16px + var(--safe-left));justify-content:center}
+html[data-mobile=true] .action-dock{width:min(100%,360px);padding:5px;border-radius:18px}
+html[data-mobile=true] .action-dock button{min-width:0;flex:1;min-height:64px;padding:8px 4px;gap:7px;font-size:11px}
+html[data-mobile=true] .action-dock svg{width:23px;height:23px}
+html[data-mobile=true] .move-pad{display:flex;left:calc(22px + var(--safe-left));bottom:calc(130px + var(--safe-bottom));width:100px;height:100px;background:#292e2866;border-color:#e8debf66;z-index:2}
+html[data-mobile=true] .pad-label{top:104px;font-size:10px}
+html[data-mobile=true] #move-knob{width:44px;height:44px}
+html[data-mobile=true] .stay-time{right:4px;bottom:97px;width:auto}
+html[data-mobile=true] #stay-timer{font-size:15px;opacity:.7}
+html[data-mobile=true] .gesture-hint{bottom:calc(9px + var(--safe-bottom));padding:0 10px;font-size:8px;letter-spacing:0;line-height:1.4}
+html[data-mobile=true] .toast{bottom:calc(245px + var(--safe-bottom));max-width:calc(100% - 40px);font-size:11px;white-space:normal;text-align:center;z-index:4}
+html[data-mobile=true] .cocoa-status{bottom:calc(123px + var(--safe-bottom));left:auto;right:calc(18px + var(--safe-right));transform:none;font-size:10px;padding:10px 12px}
+html[data-mobile=true] .reset-view{left:calc(22px + var(--safe-left));bottom:calc(255px + var(--safe-bottom));min-height:44px}
+html[data-mobile=true] dialog{width:400px;max-width:calc(100vw - 24px - var(--safe-left) - var(--safe-right));max-height:calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));padding:20px}
+html[data-mobile=true] .close-button{width:44px;height:44px;margin:-9px -9px 0 0;opacity:1}
+html[data-mobile=true] .text-button{min-height:44px;padding:10px 12px;font-size:12px}
+html[data-mobile=true] .room-roster{max-height:min(384px,46dvh)}
+html[data-mobile=true] .room-roster li{min-height:44px;font-size:13px;gap:8px}
+html[data-mobile=true] .room-roster small{font-size:10px;text-align:right}
+html[data-mobile=true] .room-actions .welcome-button{width:100%;margin-top:8px;font-size:12px}
+html[data-mobile=true] input[type=range]{height:24px}
+html[data-mobile=true] .toggle-row{min-height:44px}
+@media(orientation:landscape){
+  html[data-mobile=true] .location-tag{top:calc(66px + var(--safe-top));max-width:50%;align-items:center}
+  html[data-mobile=true] .bird-identity{flex-basis:auto;border-left:1px solid #d9c9a933;padding-left:8px}
+  html[data-mobile=true] .perspective-toggle{top:calc(64px + var(--safe-top))}
+  html[data-mobile=true] .seat-label{top:calc(111px + var(--safe-top))}
+  html[data-mobile=true] .welcome{top:calc(110px + var(--safe-top));left:calc(150px + var(--safe-left));max-width:calc(100% - 320px)}
+  html[data-mobile=true] .welcome .eyebrow{display:none}
+  html[data-mobile=true] .welcome h1{font-size:24px;margin:0 0 8px;line-height:1.45}
+  html[data-mobile=true] .welcome p{font-size:10px;margin:5px 0}
+  html[data-mobile=true] .welcome-button{margin-top:9px}
+  html[data-mobile=true] .bottom-bar{justify-content:flex-end;bottom:calc(26px + var(--safe-bottom))}
+  html[data-mobile=true] .action-dock{width:258px}
+  html[data-mobile=true] .move-pad{bottom:calc(42px + var(--safe-bottom));width:92px;height:92px}
+  html[data-mobile=true] .pad-label{top:96px}
+  html[data-mobile=true] .view-switch{top:calc(121px + var(--safe-top));transform:none;flex-direction:row;right:calc(12px + var(--safe-right))}
+  html[data-mobile=true] .view-switch button{height:44px}
+  html[data-mobile=true] .stay-time{display:none}
+  html[data-mobile=true] .gesture-hint{width:auto;left:calc(132px + var(--safe-left));right:calc(290px + var(--safe-right));bottom:calc(15px + var(--safe-bottom))}
+  html[data-mobile=true] .toast{bottom:calc(111px + var(--safe-bottom));max-width:calc(100% - 300px)}
+  html[data-mobile=true] .cocoa-status{right:calc(23px + var(--safe-right));bottom:calc(115px + var(--safe-bottom))}
+}
+@media(max-width:360px){html[data-mobile=true] .topbar{left:12px;right:8px;gap:4px}html[data-mobile=true] .brand-mark{display:none}html[data-mobile=true] .room-badge{max-width:114px}html[data-mobile=true] .welcome{left:20px;max-width:calc(100% - 80px)}html[data-mobile=true] .move-pad{width:88px;height:88px}html[data-mobile=true] .pad-label{top:92px}}
+@media(max-height:650px) and (orientation:portrait){html[data-mobile=true] .welcome{top:145px}html[data-mobile=true] .welcome h1{font-size:23px;margin:8px 0}html[data-mobile=true] .welcome p{font-size:10px}html[data-mobile=true] .welcome-button{margin-top:10px}}
